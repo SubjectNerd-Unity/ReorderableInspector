@@ -44,7 +44,8 @@ namespace UnityToolbag
 			public string Parent		{ get; private set; }
 			public Func<int, string> ElementHeaderCallback = null;
 
-			private Dictionary<string, ReorderableList> propIndex = new Dictionary<string, ReorderableList>();
+			private readonly Dictionary<string, ReorderableList> propIndex = new Dictionary<string, ReorderableList>();
+			private readonly Dictionary<string, Action<SerializedProperty, Object[]>> propDropHandlers = new Dictionary<string, Action<SerializedProperty, Object[]>>(); 
 
 			public SortableListData(string parent)
 			{
@@ -145,16 +146,25 @@ namespace UnityToolbag
 					if (evt.type == EventType.DragPerform)
 					{
 						DragAndDrop.AcceptDrag();
-						foreach (Object dragged_object in DragAndDrop.objectReferences)
+						Action<SerializedProperty, Object[]> handler = null;
+						if (propDropHandlers.TryGetValue(property.propertyPath, out handler))
 						{
-							if (dragged_object.GetType() != property.GetType())
-								continue;
+							if (handler != null)
+								handler(property, DragAndDrop.objectReferences);
+						}
+						else
+						{
+							foreach (Object dragged_object in DragAndDrop.objectReferences)
+							{
+								if (dragged_object.GetType() != property.GetType())
+									continue;
 
-							int newIndex = property.arraySize;
-							property.arraySize++;
+								int newIndex = property.arraySize;
+								property.arraySize++;
 
-							SerializedProperty target = property.GetArrayElementAtIndex(newIndex);
-							target.objectReferenceInstanceIDValue = dragged_object.GetInstanceID();
+								SerializedProperty target = property.GetArrayElementAtIndex(newIndex);
+								target.objectReferenceInstanceIDValue = dragged_object.GetInstanceID();
+							}
 						}
 						evt.Use();
 					}
@@ -167,6 +177,15 @@ namespace UnityToolbag
 				if (propIndex.ContainsKey(property.propertyPath))
 					return propIndex[property.propertyPath];
 				return null;
+			}
+
+			public void SetDropHandler(SerializedProperty property, Action<SerializedProperty, Object[]> handler)
+			{
+				string path = property.propertyPath;
+				if (propDropHandlers.ContainsKey(path))
+					propDropHandlers[path] = handler;
+				else
+					propDropHandlers.Add(path, handler);
 			}
 		} // End SortableListData
 
@@ -333,6 +352,21 @@ namespace UnityToolbag
 				return null;
 
 			return data.GetPropertyList(property);
+		}
+
+		protected bool SetDragDropHandler(SerializedProperty property, Action<SerializedProperty, Object[]> handler)
+		{
+			if (listIndex == null)
+				return false;
+
+			string parent = GetGrandParentPath(property);
+
+			SortableListData data = listIndex.Find(listData => listData.Parent.Equals(parent));
+			if (data == null)
+				return false;
+
+			data.SetDropHandler(property, handler);
+			return true;
 		}
 		#endregion
 
