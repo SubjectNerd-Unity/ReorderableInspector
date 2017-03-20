@@ -330,13 +330,53 @@ namespace UnityToolbag
 			if (attr != null && attr.Length == 1)
 			{
 				ReorderableAttribute arrayAttr = (ReorderableAttribute) attr[0];
-				if (arrayAttr != null && string.IsNullOrEmpty(arrayAttr.ElementHeader) == false)
+				if (arrayAttr != null)
 				{
-					data.ElementHeaderCallback = delegate(int i)
-					{
-						return string.Format("{0} {1}", arrayAttr.ElementHeader, (arrayAttr.HeaderZeroIndex ? i : i + 1));
-					};
+					HandleReorderableOptions(arrayAttr, property, data);
 				}
+			}
+		}
+
+		private void HandleReorderableOptions(ReorderableAttribute arrayAttr, SerializedProperty property, SortableListData data)
+		{
+			// Custom element header
+			if (string.IsNullOrEmpty(arrayAttr.ElementHeader) == false)
+			{
+				data.ElementHeaderCallback = i => string.Format("{0} {1}", arrayAttr.ElementHeader, (arrayAttr.HeaderZeroIndex ? i : i + 1));
+			}
+
+			// Draw property as single line
+			if (arrayAttr.ElementSingleLine)
+			{
+				var list = data.GetPropertyList(property);
+				list.elementHeightCallback = index => EditorGUIUtility.singleLineHeight;
+				list.drawElementCallback = (rect, index, active, focused) =>
+				{
+					var element = property.GetArrayElementAtIndex(index);
+					int childCount = element.Copy().CountRemaining();
+					childCount -= (property.arraySize - 1) - index;
+
+					if (element.NextVisible(true))
+					{
+						float restoreWidth = EditorGUIUtility.labelWidth;
+						EditorGUIUtility.labelWidth /= childCount;
+
+						Rect childRect = new Rect(rect) { width = rect.width / childCount };
+						int depth = element.Copy().depth;
+						do
+						{
+							if (element.depth != depth)
+								break;
+							if (childCount <= 2)
+								EditorGUI.PropertyField(childRect, element, false);
+							else
+								EditorGUI.PropertyField(childRect, element, GUIContent.none, false);
+							childRect.x += childRect.width;
+						} while (element.NextVisible(false));
+
+						EditorGUIUtility.labelWidth = restoreWidth;
+					}
+				};
 			}
 		}
 

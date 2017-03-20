@@ -10,17 +10,20 @@ namespace UnityToolbag
 	{
 		public string ElementHeader { get; protected set; }
 		public bool HeaderZeroIndex { get; protected set; }
+		public bool ElementSingleLine { get; protected set; }
 
 		public ReorderableAttribute()
 		{
 			ElementHeader = string.Empty;
 			HeaderZeroIndex = false;
+			ElementSingleLine = false;
 		}
 
-		public ReorderableAttribute(string headerString, bool isZeroIndex = true)
+		public ReorderableAttribute(string headerString, bool isZeroIndex = true, bool isSingleLine = false)
 		{
 			ElementHeader = headerString;
 			HeaderZeroIndex = isZeroIndex;
+			ElementSingleLine = isSingleLine;
 		}
 	}
 }
