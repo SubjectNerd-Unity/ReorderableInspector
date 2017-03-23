@@ -33,6 +33,8 @@ namespace UnityToolbag
 		private static void HandleScriptReload()
 		{
 			FORCE_INIT = true;
+
+			EditorApplication.delayCall = () => { EditorApplication.delayCall = () => { FORCE_INIT = false; }; };
 		}
 
 		/// <summary>
@@ -233,9 +235,6 @@ namespace UnityToolbag
 		{
 			if (isInitialized && FORCE_INIT == false)
 				return;
-
-			if (FORCE_INIT)
-				FORCE_INIT = false;
 
 			FindSortableArrays();
 			FindContextMenu();
