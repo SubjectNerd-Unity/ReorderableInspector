@@ -113,28 +113,19 @@ public class CustomSortableInspector : ReorderableArrayInspector
 	protected override void InitInspector()
 	{
 		base.InitInspector();
-
-		// Do your own initializations here
+		
+		// Always call DrawInspector function
+		alwaysDrawInspector = true;
+		
+		// Do other initializations here
 	}
-
-	public override void OnInspectorGUI()
+	
+	// Override this function to draw
+	protected override void DrawInspector()
 	{
-		// Not initialized, try initializing
-		if (listIndex == null)
-			InitInspector();
-		// No sortable arrays or list index unintialized
-		if (hasSortableArrays == false || listIndex == null)
-		{
-			base.OnInspectorGUI();
-			DrawContextMenuButtons();
-			return;
-		}
-
-		serializedObject.Update();
-
-		EditorGUI.BeginChangeCheck();
-
 		// Call the relevant default drawer functions here
+		// The following functions will automatically draw properties
+		// with ReorderableList when applicable
 		/*
 		// Draw all properties
 		DrawDefaultSortable();
@@ -151,30 +142,33 @@ public class CustomSortableInspector : ReorderableArrayInspector
 		// Draw properties starting from startProperty, ends before endProperty
 		DrawPropertiesFromUpTo("startProperty", "endProperty");
 		*/
-
+		
 		// Write your custom inspector functions here
 		EditorGUILayout.HelpBox("This is a custom inspector", MessageType.Info);
-
-		if (EditorGUI.EndChangeCheck())
-		{
-			serializedObject.ApplyModifiedProperties();
-			isInitialized = false;
-			InitInspector();
-		}
-
-		DrawContextMenuButtons();
 	}
 }
 ```
 
-You can get a reference to the `ReorderableList` drawing the property, allowing for further extension of the list.
+You can also get a reference to the `ReorderableList` drawing the properties marked with `Reorderable`, allowing for further extension of the list.
+
+The drag and drop handler for a list can also be set for handling dragging and dropping into lists of custom classes.
 
 ```C#
 // SerializableObject
 public class YourCustomClass : SerializableObject
 {
 	[Reorderable]
-	List<GameObject> enemyPrefabs;
+	public List<GameObject> enemyPrefabs;
+	
+	[Serializable]
+	public struct AudioData
+	{
+		public AudioClip clip;
+		public float volume;
+	}
+	
+	[Reorderable]
+	public List<AudioData> audioList;
 }
 ```
 
@@ -187,11 +181,50 @@ public class CustomSortableInspector : ReorderableArrayInspector
 	protected override void InitInspector()
 	{
 		base.InitInspector();
-
-		var propList = serializedObject.FindProperty("enemyPrefabs");
-		ReorderableList listEnemies = GetSortableList(propList);
+		
+		// Get enemy prefabs list property
+		SerializedProperty propList = serializedObject.FindProperty("enemyPrefabs");
+		
 		// Modify the callbacks of the ReorderableList here. Refer here for details
 		// http://va.lent.in/unity-make-your-lists-functional-with-reorderablelist/
+		//
+		// Ideas:
+		// Add a custom add dropdown, change how the elements are drawn, handle removing or adding objects
+		ReorderableList listEnemies = GetSortableList(propList);
+		
+		// Get audio list property
+		SerializedProperty propAudio = serializedObject.FindProperty("audioList");
+		
+		// Set the drag and drop handling function for the audio list
+		SetDragDropHandler(propAudio, HandleAudioDragDrop);
+	}
+	
+	protected void HandleAudioDragDrop(SerializedProperty propList, UnityEngine.Object[] objects)
+	{
+		bool didAdd = false;
+		// Process the list of objects being drag and dropped into the audio list
+		foreach (Object obj in objects)
+		{
+			AudioClip clip = obj as AudioClip;
+			if (clip == null)
+				continue;
+			didAdd = true;
+			
+			// When list is expanded, current array size is the last index
+			int newIdx = property.arraySize;
+			// Expand list size
+			property.arraySize++;
+			
+			// Get the last array element
+			var propData = property.GetArrayElementAtIndex(newIdx);
+			// And set the data
+			propData.FindPropertyRelative("clip").objectReferenceValue = clip;
+			propData.FindPropertyRelative("volume").floatValue = 1f;
+		}
+		
+		// Make sure to apply modified properties
+		if (didAdd)
+			property.serializedObject.ApplyModifiedProperties();
 	}
 }
 ```
