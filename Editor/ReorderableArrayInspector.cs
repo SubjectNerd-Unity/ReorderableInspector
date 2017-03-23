@@ -83,22 +83,27 @@ namespace UnityToolbag
 					if (ElementHeaderCallback != null)
 						propHeader.text = ElementHeaderCallback(index);
 					EditorGUI.PropertyField(rect, targetElement, propHeader, isExpanded);
-					// Height might have changed when dealing with serialized class
-					// Call the select callback when height changes to reset the list elementHeight
-					float newHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
-					if (rect.height != newHeight)
+					
+					// If drawing the selected element, use it to set the element height
+					// Element height seems to control selected background
+					if (index == propList.index)
 					{
-						propList.onSelectCallback(propList);
-#if UNITY_5_1 || UNITY_5_2
-						propList.elementHeight = Mathf.Max(propList.elementHeight, newHeight);
+#if UNITY_5_3_OR_NEWER
+						propList.elementHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
+#elif UNITY_5_1 || UNITY_5_2						
+						// Height might have changed when dealing with serialized class
+						// Call the select callback when height changes to reset the list elementHeight
+						float newHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
+						if (rect.height != newHeight)
+							propList.elementHeight = Mathf.Max(propList.elementHeight, newHeight);
 #endif
 					}
 				};
 
-				propList.onSelectCallback = delegate(ReorderableList list)
+				propList.onSelectCallback = list =>
 				{
-					SerializedProperty targetElement = property.GetArrayElementAtIndex(list.index);
-					list.elementHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
+					var targetElement = list.serializedProperty.GetArrayElementAtIndex(list.index);
+					propList.elementHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
 				};
 
 				// Unity 5.3 onwards allows reorderable lists to have variable element heights
@@ -191,8 +196,9 @@ namespace UnityToolbag
 			}
 		} // End SortableListData
 
-		protected List<SortableListData> listIndex;
+		private readonly List<SortableListData> listIndex = new List<SortableListData>();
 
+		protected bool alwaysDrawInspector = false;
 		protected bool isInitialized = false;
 		protected bool hasSortableArrays = false;
 
@@ -209,6 +215,7 @@ namespace UnityToolbag
 				validate = null;
 			}
 		}
+
 		protected Dictionary<string, ContextMenuData> contextData = new Dictionary<string, ContextMenuData>();
 
 		~ReorderableArrayInspector()
@@ -242,7 +249,7 @@ namespace UnityToolbag
 
 		protected void FindSortableArrays()
 		{
-			listIndex = new List<SortableListData>();
+			listIndex.Clear();
 
 			SerializedProperty iterProp = serializedObject.GetIterator();
 			// This iterator goes through all the child serialized properties, looking
@@ -265,6 +272,7 @@ namespace UnityToolbag
 						{
 							hasSortableArrays = true;
 							CreateListData(serializedObject.FindProperty(iterProp.propertyPath));
+
 						}
 					}
 				} while (iterProp.NextVisible(true));
@@ -273,7 +281,7 @@ namespace UnityToolbag
 			isInitialized = true;
 			if (hasSortableArrays == false)
 			{
-				listIndex = null;
+				listIndex.Clear();
 			}
 		}
 
@@ -360,7 +368,11 @@ namespace UnityToolbag
 						float restoreWidth = EditorGUIUtility.labelWidth;
 						EditorGUIUtility.labelWidth /= childCount;
 
-						Rect childRect = new Rect(rect) { width = rect.width / childCount };
+						float padding = 5f;
+						float width = rect.width - padding*(childCount - 1);
+						width /= childCount;
+
+						Rect childRect = new Rect(rect) { width = width };
 						int depth = element.Copy().depth;
 						do
 						{
@@ -370,7 +382,7 @@ namespace UnityToolbag
 								EditorGUI.PropertyField(childRect, element, false);
 							else
 								EditorGUI.PropertyField(childRect, element, GUIContent.none, false);
-							childRect.x += childRect.width;
+							childRect.x += width + padding;
 						} while (element.NextVisible(false));
 
 						EditorGUIUtility.labelWidth = restoreWidth;
@@ -381,7 +393,7 @@ namespace UnityToolbag
 
 		protected ReorderableList GetSortableList(SerializedProperty property)
 		{
-			if (listIndex == null)
+			if (listIndex.Count == 0)
 				return null;
 
 			string parent = GetGrandParentPath(property);
@@ -395,7 +407,7 @@ namespace UnityToolbag
 
 		protected bool SetDragDropHandler(SerializedProperty property, Action<SerializedProperty, Object[]> handler)
 		{
-			if (listIndex == null)
+			if (listIndex.Count == 0)
 				return false;
 
 			string parent = GetGrandParentPath(property);
@@ -409,24 +421,36 @@ namespace UnityToolbag
 		}
 		#endregion
 
-		public override void OnInspectorGUI()
+		protected bool InspectorGUIStart(bool force = false)
 		{
 			// Not initialized, try initializing
-			if (listIndex == null)
+			if (listIndex.Count == 0)
 				InitInspector();
 			// No sortable arrays or list index unintialized
-			if (hasSortableArrays == false || listIndex == null)
+			if ((hasSortableArrays == false || listIndex.Count == 0) && force == false)
 			{
 				base.OnInspectorGUI();
 				DrawContextMenuButtons();
-				return;
+				return false;
 			}
 
 			serializedObject.Update();
+			return true;
+		}
+
+		protected virtual void DrawInspector()
+		{
+			DrawDefaultSortable();
+		}
+
+		public override void OnInspectorGUI()
+		{
+			if (InspectorGUIStart(alwaysDrawInspector) == false)
+				return;
 
 			EditorGUI.BeginChangeCheck();
 
-			DrawDefaultSortable();
+			DrawInspector();
 
 			if (EditorGUI.EndChangeCheck())
 			{
@@ -463,7 +487,7 @@ namespace UnityToolbag
 		{
 			// Try to get the sortable list this property belongs to
 			SortableListData listData = null;
-			if (listIndex != null)
+			if (listIndex.Count > 0)
 				listData = listIndex.Find(data => property.propertyPath.StartsWith(data.Parent));
 
 			if (listData != null)
