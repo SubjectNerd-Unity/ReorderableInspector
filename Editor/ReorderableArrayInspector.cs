@@ -285,6 +285,14 @@ namespace UnityToolbag
 			}
 		}
 
+		private IEnumerable<MethodInfo> GetAllMethods(Type t)
+		{
+			if (t == null)
+				return Enumerable.Empty<MethodInfo>();
+			var binding = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+            return t.GetMethods(binding).Concat(GetAllMethods(t.BaseType));
+		} 
+
 		private void FindContextMenu()
 		{
 			contextData.Clear();
@@ -292,7 +300,7 @@ namespace UnityToolbag
 			// Get context menu
 			Type targetType = target.GetType();
 			Type contextMenuType = typeof(ContextMenu);
-			MethodInfo[] methods = targetType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+			MethodInfo[] methods = GetAllMethods(targetType).ToArray();
 			for (int index = 0; index < methods.GetLength(0); ++index)
 			{
 				MethodInfo methodInfo = methods[index];
