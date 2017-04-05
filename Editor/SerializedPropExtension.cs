@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
@@ -113,7 +114,7 @@ namespace UnityToolbag
 		/// <typeparam name="T"></typeparam>
 		/// <param name="prop"></param>
 		/// <returns></returns>
-		public static T GetValue<T>(this SerializedProperty prop)
+		public static object GetValue<T>(this SerializedProperty prop)
 		{
 			var path = prop.propertyPath.Replace(".Array.data[", "[");
 			object obj = prop.serializedObject.targetObject;
@@ -131,7 +132,9 @@ namespace UnityToolbag
 					obj = GetValue(obj, element);
 				}
 			}
-			return (T) obj;
+			if (obj is T)
+				return (T) obj;
+			return null;
 		}
 
 		/// <summary>
@@ -212,8 +215,9 @@ namespace UnityToolbag
 		{
 			object obj = GetParent<object>(prop);
 			if (obj == null)
-				return null;
+				return new object[0];
 
+			Type attrType = typeof (T);
 			Type objType = obj.GetType();
 			const BindingFlags bindingFlags = System.Reflection.BindingFlags.GetField
 			                                  | System.Reflection.BindingFlags.GetProperty
@@ -222,8 +226,45 @@ namespace UnityToolbag
 			                                  | System.Reflection.BindingFlags.Public;
 			FieldInfo field = objType.GetField(prop.name, bindingFlags);
 			if (field != null)
-				return field.GetCustomAttributes(typeof (T), true);
-			return null;
+				return field.GetCustomAttributes(attrType, true);
+			return new object[0];
+		}
+
+		/// <summary>
+		/// Find properties in the serialized object of the given type.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="obj"></param>
+		/// <param name="enterChildren"></param>
+		/// <returns></returns>
+		public static SerializedProperty[] FindPropsOfType<T>(this SerializedObject obj, bool enterChildren = false)
+		{
+			List<SerializedProperty> foundProps = new List<SerializedProperty>();
+			Type propType = typeof(T);
+
+			var iterProp = obj.GetIterator();
+			iterProp.Next(true);
+
+			if (iterProp.NextVisible(enterChildren))
+			{
+				do
+				{
+					var propValue = iterProp.GetValue<T>();
+					if (propValue == null)
+					{
+						if (iterProp.propertyType == SerializedPropertyType.ObjectReference)
+						{
+							if (iterProp.objectReferenceValue != null && iterProp.objectReferenceValue.GetType() == propType)
+								foundProps.Add(iterProp.Copy());
+						}
+					}
+					else
+					{
+						foundProps.Add(iterProp.Copy());
+					}
+				} while (iterProp.NextVisible(enterChildren));
+			}
+            return foundProps.ToArray();
 		}
 
 		#endregion
