@@ -4,9 +4,15 @@ Automatically turn arrays/lists into ReorderableLists in Unity inspectors. Inspi
 
 ![Sortable Array](./Docs/sortable-array.png)
 
-# Usage
+This is an inspector enhancement that gives you nicer inspector features without having to write additional code. Easily rearrange arrays, add buttons for utility functions, and and edit linked `ScriptableObjects` right in the same inspector.
 
-Place the folder in your project. By default, the inspector will only draw arrays marked with the `Reorderable` attribute
+## Installation
+
+Download the UnityPackage from the [latest releases](https://github.com/ChemiKhazi/ReorderableInspector/releases) and import it into Unity. The directory can be moved after being imported.
+
+## Usage
+
+By default, inspectors will only draw arrays marked with the `Reorderable` attribute as `ReorderableList`s
 
 ```C#
 public class ListReorderTest : MonoBehaviour
@@ -18,53 +24,13 @@ public class ListReorderTest : MonoBehaviour
 }
 ```
 
-If you want to apply the reorderable list to all arrays, edit `Editor\ReorderableArrayInspector.cs` and change `LIST_ALL_ARRAYS` to `true`
-
-### Custom Element Names
-
-You can set the name used for each element in the list by specifying it in the attribute. You can also set if the numbering will start from one or zero.
-
-```C#
-public class ListReorderTest : MonoBehaviour
-{  
-	[Reorderable("String")]
-	public string[] stringArray; // Array elements listed as: "String 0"
-
-	[Reorderable("Other String", isZeroIndex:false)]
-	public List<string> stringList; // Array elements listed as: "Other String 1"
-}
-```
-
-![Custom Element Names](./Docs/element-names.png)
+If you want to apply the reorderable list to all arrays, edit `Editor\ReorderableArrayInspector.cs` and uncomment the defines at the top of the file
 
 ## Additional Features
 
-Handles arrays/lists nested inside other classes
+### `ContextMenu` buttons.
 
-```C#
-public class ListReorderTest : MonoBehaviour
-{
-	[Serializable]
-	public class InternalClass
-	{
-		public bool testBool;
-		[Reorderable] public List<int> innerList;
-	}
-
-	[Header("A single class instance, with an inner sortable list")]
-	public InternalClass instance;
-
-	[Reorderable]
-	[Header("A list of serialized class instances")]
-	public List<InternalClass> classList;
-}
-```
-
-Drag and drop objects into arrays like the default inspector
-
-![Drag and drop](./Docs/sortable-drag-drop.jpg)
-
-Automatic `ContextMenu` buttons.
+Easily add buttons to your inspector by using Unity's `ContextMenu` attribute
 
 ```C#
 public class ContextMenuTest : MonoBehaviour
@@ -93,18 +59,40 @@ public class ContextMenuTest : MonoBehaviour
 
 ![Context Menu](./Docs/context-menu.png)
 
+### Inline `ScriptableObject` editing
+
+Edit settings stored in `ScriptableObject`s right in the inspector with the `EditScriptable` attribute. A feature inspired by [Tom Kail's ExtendedScriptableObjectDrawer](https://heavens-vault-game.tumblr.com/post/162127808290/inline-scriptableobject-editing-in-unity)
+
+```C#
+public class SkinData : ScriptableObject
+{
+	public string id;
+	public Sprite sprite;
+}
+
+public class TestEntity : MonoBehaviour
+{
+	public string entityName;
+	[EditScriptable]
+	public SkinData skin;
+}
+```
+
 ## Limitations
 
 - Only supports Unity 5 and above
 - ReorderableLists of class instances may be a little rough, especially below Unity version 5.3
 - Custom inspectors will not automatically gain the ability to turn arrays into reorderable lists. See next section for creating custom inspectors that allow for this functionality.
 
-# Custom inspectors
+## Custom inspectors
 
 Custom inspectors will not automatically draw arrays as ReorderableLists unless they inherit from `ReorderableArrayInspector`.
 
 The class contains helper functions that can handle default property drawing. Below is a template for a custom inspector.
 
+Additional custom inspector functionality is discussed in the [wiki](https://github.com/ChemiKhazi/ReorderableInspector/wiki/Custom-Inspectors).
+
+## Inspector Template
 ```C#
 [CustomEditor(typeof(YourCustomClass))]
 public class CustomSortableInspector : ReorderableArrayInspector
@@ -145,86 +133,6 @@ public class CustomSortableInspector : ReorderableArrayInspector
 		
 		// Write your custom inspector functions here
 		EditorGUILayout.HelpBox("This is a custom inspector", MessageType.Info);
-	}
-}
-```
-
-You can also get a reference to the `ReorderableList` drawing the properties marked with `Reorderable`, allowing for further extension of the list.
-
-The drag and drop handler for a list can also be set for handling dragging and dropping into lists of custom classes.
-
-```C#
-// SerializableObject
-public class YourCustomClass : SerializableObject
-{
-	[Reorderable]
-	public List<GameObject> enemyPrefabs;
-	
-	[Serializable]
-	public struct AudioData
-	{
-		public AudioClip clip;
-		public float volume;
-	}
-	
-	[Reorderable]
-	public List<AudioData> audioList;
-}
-```
-
-```C#
-// Custom inspector
-[CustomEditor(typeof(YourCustomClass))]
-public class CustomSortableInspector : ReorderableArrayInspector
-{
-	// Called by OnEnable
-	protected override void InitInspector()
-	{
-		base.InitInspector();
-		
-		// Get enemy prefabs list property
-		SerializedProperty propList = serializedObject.FindProperty("enemyPrefabs");
-		
-		// Modify the callbacks of the ReorderableList here. Refer here for details
-		// http://va.lent.in/unity-make-your-lists-functional-with-reorderablelist/
-		//
-		// Ideas:
-		// Add a custom add dropdown, change how the elements are drawn, handle removing or adding objects
-		ReorderableList listEnemies = GetSortableList(propList);
-		
-		// Get audio list property
-		SerializedProperty propAudio = serializedObject.FindProperty("audioList");
-		
-		// Set the drag and drop handling function for the audio list
-		SetDragDropHandler(propAudio, HandleAudioDragDrop);
-	}
-	
-	protected void HandleAudioDragDrop(SerializedProperty propList, UnityEngine.Object[] objects)
-	{
-		bool didAdd = false;
-		// Process the list of objects being drag and dropped into the audio list
-		foreach (Object obj in objects)
-		{
-			AudioClip clip = obj as AudioClip;
-			if (clip == null)
-				continue;
-			didAdd = true;
-			
-			// When list is expanded, current array size is the last index
-			int newIdx = property.arraySize;
-			// Expand list size
-			property.arraySize++;
-			
-			// Get the last array element
-			var propData = property.GetArrayElementAtIndex(newIdx);
-			// And set the data
-			propData.FindPropertyRelative("clip").objectReferenceValue = clip;
-			propData.FindPropertyRelative("volume").floatValue = 1f;
-		}
-		
-		// Make sure to apply modified properties
-		if (didAdd)
-			property.serializedObject.ApplyModifiedProperties();
 	}
 }
 ```
