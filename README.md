@@ -12,7 +12,7 @@ Download the UnityPackage from the [latest releases](https://github.com/ChemiKha
 
 ## Usage
 
-By default, inspectors will only draw arrays marked with the `Reorderable` attribute as a `ReorderableList`
+To draw an array as a `ReorderableList`, mark the property with the `Reorderable` attribute.
 
 ```C#
 public class ListReorderTest : MonoBehaviour
@@ -24,13 +24,13 @@ public class ListReorderTest : MonoBehaviour
 }
 ```
 
-If you want to apply the reorderable list to all arrays, edit `Editor\ReorderableArrayInspector.cs` and uncomment the defines at the top of the file
+If you want to apply the reorderable list to all arrays, edit `ReorderableArrayInspector.cs` and uncomment the defines at the top of the file
 
 ## Additional Features
 
 ### `ContextMenu` buttons.
 
-Easily add buttons to your inspector by using Unity's `ContextMenu` attribute
+Quickly add buttons for utility functions to the inspector by using Unity's `ContextMenu` attribute
 
 ```C#
 public class ContextMenuTest : MonoBehaviour
@@ -61,7 +61,7 @@ public class ContextMenuTest : MonoBehaviour
 
 ### Inline `ScriptableObject` editing
 
-Edit settings stored in `ScriptableObject`s right in the inspector with the `EditScriptable` attribute. A feature inspired by [Tom Kail's ExtendedScriptableObjectDrawer](https://heavens-vault-game.tumblr.com/post/162127808290/inline-scriptableobject-editing-in-unity)
+Edit settings stored in a `ScriptableObject` in the inspector with the `EditScriptable` attribute. A feature inspired by [Tom Kail's ExtendedScriptableObjectDrawer](https://heavens-vault-game.tumblr.com/post/162127808290/inline-scriptableobject-editing-in-unity)
 
 ```C#
 public class SkinData : ScriptableObject
@@ -73,6 +73,7 @@ public class SkinData : ScriptableObject
 public class TestEntity : MonoBehaviour
 {
 	public string entityName;
+	
 	// Add the `EditScriptable` attribute to edit the `ScriptableObject` in the GameObject inspector
 	[EditScriptable]
 	public SkinData skin;
@@ -83,15 +84,15 @@ public class TestEntity : MonoBehaviour
 
 - Only supports Unity 5 and above
 - ReorderableLists of class instances may be a little rough, especially below Unity version 5.3
-- Custom inspectors will not automatically gain the ability to turn arrays into reorderable lists. See next section for creating custom inspectors that allow for this functionality.
+- Custom inspectors will not automatically gain the ability to turn arrays into reorderable lists. See next section.
 
 ## Custom inspectors
 
 Custom inspectors will not automatically draw arrays as ReorderableLists unless they inherit from `ReorderableArrayInspector`.
 
-The class contains helper functions that can handle default property drawing. Below is a template for a custom inspector.
+This class contains helper functions that can handle default property drawing. Below is a template for a custom inspector.
 
-Additional custom inspector functionality is discussed in the [wiki](https://github.com/ChemiKhazi/ReorderableInspector/wiki/Custom-Inspectors).
+Additional custom inspector functionality is [discussed in the wiki](https://github.com/ChemiKhazi/ReorderableInspector/wiki/Custom-Inspectors).
 
 ## Inspector Template
 ```C#
@@ -137,3 +138,7 @@ public class CustomSortableInspector : ReorderableArrayInspector
 	}
 }
 ```
+
+## Buy me a coffee!
+
+If this Unity enhancement is useful to you, it would be great if you could [buy me a coffee](https://ko-fi.com/subjectnerd)!
