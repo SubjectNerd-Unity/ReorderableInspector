@@ -4,7 +4,7 @@ Automatically turn arrays/lists into ReorderableLists in Unity inspectors. Inspi
 
 ![Sortable Array](./Docs/sortable-array.png)
 
-This is an inspector enhancement that gives you nicer inspector features without having to write additional code. Easily rearrange arrays, add buttons for utility functions, and and edit linked `ScriptableObjects` right in the same inspector.
+This is an editor enhancement that gives you nicer inspector features without having to write additional code. Easily rearrange arrays, add buttons for utility functions, and and edit linked `ScriptableObjects` right in your GameObject's inspector.
 
 ## Installation
 
@@ -12,7 +12,7 @@ Download the UnityPackage from the [latest releases](https://github.com/ChemiKha
 
 ## Usage
 
-By default, inspectors will only draw arrays marked with the `Reorderable` attribute as `ReorderableList`s
+By default, inspectors will only draw arrays marked with the `Reorderable` attribute as a `ReorderableList`
 
 ```C#
 public class ListReorderTest : MonoBehaviour
@@ -73,6 +73,7 @@ public class SkinData : ScriptableObject
 public class TestEntity : MonoBehaviour
 {
 	public string entityName;
+	// Add the `EditScriptable` attribute to edit the `ScriptableObject` in the GameObject inspector
 	[EditScriptable]
 	public SkinData skin;
 }
