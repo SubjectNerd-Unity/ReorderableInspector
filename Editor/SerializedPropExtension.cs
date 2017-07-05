@@ -26,6 +26,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEngine;
 
 namespace SubjectNerd.Utilities
 {
@@ -157,6 +158,24 @@ namespace SubjectNerd.Utilities
 			if (obj is T)
 				return (T) obj;
 			return null;
+		}
+
+		public static Type GetTypeReflection(this SerializedProperty prop)
+		{
+			object obj = GetParent<object>(prop);
+			if (obj == null)
+				return null;
+			
+			Type objType = obj.GetType();
+			const BindingFlags bindingFlags = System.Reflection.BindingFlags.GetField
+											  | System.Reflection.BindingFlags.GetProperty
+											  | System.Reflection.BindingFlags.Instance
+											  | System.Reflection.BindingFlags.NonPublic
+											  | System.Reflection.BindingFlags.Public;
+			FieldInfo field = objType.GetField(prop.name, bindingFlags);
+			if (field == null)
+				return null;
+			return field.FieldType;
 		}
 
 		/// <summary>
