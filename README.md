@@ -128,10 +128,10 @@ public class CustomSortableInspector : ReorderableArrayInspector
 		// with ReorderableList when applicable
 		/*
 		// Draw all properties
-		DrawDefaultSortable();
+		DrawPropertiesAll();
 
 		// Like DrawPropertiesExcluding
-		DrawSortableExcept("sprites");
+		DrawPropertiesExcept("sprites");
 
 		// Draw all properties, starting from specified property
 		DrawPropertiesFrom("propertyName");
