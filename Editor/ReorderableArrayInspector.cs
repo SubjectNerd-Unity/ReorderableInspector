@@ -20,6 +20,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.*/
 
+// Uncomment the line below to turn all arrays into reorderable lists
+//#define LIST_ALL_ARRAYS
+
+// Uncomment the line below to make all ScriptableObject fields editable
+//#define EDIT_ALL_SCRIPTABLES
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -218,11 +224,20 @@ namespace SubjectNerd.Utilities
 			}
 		} // End SortableListData
 
+		public bool isSubEditor;
+
+		private readonly GUILayoutOption uiExpandWidth = GUILayout.ExpandWidth(true);
+		private readonly GUILayoutOption uiWidth50 = GUILayout.Width(50);
+		private readonly GUILayoutOption uiHeight2 = GUILayout.Height(2);
+		private readonly GUIContent labelBtnCreate = new GUIContent("Create");
+
 		private readonly List<SortableListData> listIndex = new List<SortableListData>();
+		private readonly Dictionary<string, Editor> editableIndex = new Dictionary<string, Editor>(); 
 
 		protected bool alwaysDrawInspector = false;
 		protected bool isInitialized = false;
 		protected bool hasSortableArrays = false;
+		protected bool hasEditable = false;
 
 		protected struct ContextMenuData
 		{
@@ -243,8 +258,10 @@ namespace SubjectNerd.Utilities
 		~ReorderableArrayInspector()
 		{
 			listIndex.Clear();
+			//hasSortableArrays = false;
+			editableIndex.Clear();
+			//hasEditable = false;
 			isInitialized = false;
-			hasSortableArrays = false;
 		}
 
 		#region Initialization
@@ -265,13 +282,15 @@ namespace SubjectNerd.Utilities
 			if (isInitialized && FORCE_INIT == false)
 				return;
 
-			FindSortableArrays();
+			FindTargetProperties();
 			FindContextMenu();
 		}
 
-		protected void FindSortableArrays()
+		protected void FindTargetProperties()
 		{
 			listIndex.Clear();
+			editableIndex.Clear();
+			Type typeScriptable = typeof (ScriptableObject);
 
 			SerializedProperty iterProp = serializedObject.GetIterator();
 			// This iterator goes through all the child serialized properties, looking
@@ -282,19 +301,48 @@ namespace SubjectNerd.Utilities
 				{
 					if (iterProp.isArray && iterProp.propertyType != SerializedPropertyType.String)
 					{
-						bool canTurnToList = true;
-						// If not going to list all arrays
-						// Use SerializedPropExtension to check for attribute
-						if (LIST_ALL_ARRAYS == false)
-						{
-							canTurnToList = iterProp.HasAttribute<ReorderableAttribute>();
-						}
-
+#if LIST_ALL_ARRAYS
+						bool canTurnToList = true
+#else
+						bool canTurnToList = iterProp.HasAttribute<ReorderableAttribute>();
+#endif
 						if (canTurnToList)
 						{
 							hasSortableArrays = true;
 							CreateListData(serializedObject.FindProperty(iterProp.propertyPath));
+						}
+					}
 
+					if (iterProp.propertyType == SerializedPropertyType.ObjectReference)
+					{
+						Type propType = iterProp.GetTypeReflection();
+						if (propType == null)
+							continue;
+
+						bool isScriptable = propType.IsSubclassOf(typeScriptable);
+						if (isScriptable)
+						{
+#if EDIT_ALL_SCRIPTABLES
+							bool makeEditable = true;
+#else
+							bool makeEditable = iterProp.HasAttribute<EditScriptableAttribute>();
+#endif
+
+							if (makeEditable)
+							{
+								Editor scriptableEditor = null;
+								if (iterProp.objectReferenceValue != null)
+								{
+									CreateCachedEditorWithContext(iterProp.objectReferenceValue,
+																serializedObject.targetObject, null,
+																ref scriptableEditor);
+									var reorderable = scriptableEditor as ReorderableArrayInspector;
+									if (reorderable != null)
+										reorderable.isSubEditor = true;
+								}
+								editableIndex.Add(iterProp.propertyPath, scriptableEditor);
+								hasEditable = true;
+							}
 						}
 					}
 				} while (iterProp.NextVisible(true));
@@ -313,7 +361,7 @@ namespace SubjectNerd.Utilities
 				return Enumerable.Empty<MethodInfo>();
 			var binding = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             return t.GetMethods(binding).Concat(GetAllMethods(t.BaseType));
-		} 
+		}
 
 		private void FindContextMenu()
 		{
@@ -421,6 +469,11 @@ namespace SubjectNerd.Utilities
 			}
 		}
 
+		/// <summary>
+		/// Given a SerializedProperty, return the automatic ReorderableList assigned to it if any
+		/// </summary>
+		/// <param name="property"></param>
+		/// <returns></returns>
 		protected ReorderableList GetSortableList(SerializedProperty property)
 		{
 			if (listIndex.Count == 0)
@@ -435,6 +488,12 @@ namespace SubjectNerd.Utilities
 			return data.GetPropertyList(property);
 		}
 
+		/// <summary>
+		/// Set a drag and drop handler function on a SerializedObject's ReorderableList, if any
+		/// </summary>
+		/// <param name="property"></param>
+		/// <param name="handler"></param>
+		/// <returns></returns>
 		protected bool SetDragDropHandler(SerializedProperty property, Action<SerializedProperty, Object[]> handler)
 		{
 			if (listIndex.Count == 0)
@@ -449,17 +508,26 @@ namespace SubjectNerd.Utilities
 			data.SetDropHandler(property, handler);
 			return true;
 		}
-		#endregion
+#endregion
 
 		protected bool InspectorGUIStart(bool force = false)
 		{
 			// Not initialized, try initializing
-			if (listIndex.Count == 0)
+			if (hasSortableArrays && listIndex.Count == 0)
 				InitInspector();
+			if (hasEditable && editableIndex.Count == 0)
+				InitInspector();
+
 			// No sortable arrays or list index unintialized
-			if ((hasSortableArrays == false || listIndex.Count == 0) && force == false)
+			bool cannotDrawOrderable = (hasSortableArrays == false || listIndex.Count == 0);
+			bool cannotDrawEditable = (hasEditable == false || editableIndex.Count == 0);
+            if (cannotDrawOrderable && cannotDrawEditable && force == false)
 			{
-				base.OnInspectorGUI();
+				if (isSubEditor)
+					DrawPropertiesExcluding(serializedObject, "m_Script");
+				else
+					base.OnInspectorGUI();
+
 				DrawContextMenuButtons();
 				return false;
 			}
@@ -470,7 +538,7 @@ namespace SubjectNerd.Utilities
 
 		protected virtual void DrawInspector()
 		{
-			DrawDefaultSortable();
+			DrawPropertiesAll();
 		}
 
 		public override void OnInspectorGUI()
@@ -479,9 +547,9 @@ namespace SubjectNerd.Utilities
 				return;
 
 			EditorGUI.BeginChangeCheck();
-
+			
 			DrawInspector();
-
+			
 			if (EditorGUI.EndChangeCheck())
 			{
 				serializedObject.ApplyModifiedProperties();
@@ -490,7 +558,7 @@ namespace SubjectNerd.Utilities
 
 			DrawContextMenuButtons();
 		}
-
+		
 		protected void IterateSerializedProp(SerializedProperty property)
 		{
 			if (property.NextVisible(true))
@@ -502,6 +570,8 @@ namespace SubjectNerd.Utilities
 					// If goes deeper than the iteration depth, get out
 					if (property.depth != depth)
 						break;
+					if (isSubEditor && property.name.Equals("m_Script"))
+						continue;
 
 					DrawPropertySortableArray(property);
 				} while (property.NextVisible(false));
@@ -520,6 +590,9 @@ namespace SubjectNerd.Utilities
 			if (listIndex.Count > 0)
 				listData = listIndex.Find(data => property.propertyPath.StartsWith(data.Parent));
 
+			Editor scriptableEditor;
+			bool isScriptableEditor = editableIndex.TryGetValue(property.propertyPath, out scriptableEditor);
+
 			if (listData != null)
 			{
 				// Try to show the list
@@ -536,22 +609,69 @@ namespace SubjectNerd.Utilities
 
 				}
 			}
+			else if (isScriptableEditor)
+			{
+				if (scriptableEditor == null)
+				{
+					using (new EditorGUILayout.HorizontalScope())
+					{
+						EditorGUILayout.PropertyField(property, uiExpandWidth);
+						if (GUILayout.Button(labelBtnCreate, EditorStyles.miniButton, uiWidth50))
+						{
+							Type propType = property.GetTypeReflection();
+							var createdAsset = CreateAssetWithSavePrompt(propType, "Assets");
+							if (createdAsset != null)
+								property.objectReferenceValue = createdAsset;
+						}
+					}
+				}
+				else
+				{
+					EditorGUILayout.PropertyField(property);
+					Rect rectFoldout = GUILayoutUtility.GetLastRect();
+					rectFoldout.width = 20;
+					property.isExpanded = EditorGUI.Foldout(rectFoldout, property.isExpanded, GUIContent.none);
+
+					if (property.isExpanded)
+					{
+						EditorGUI.indentLevel++;
+						scriptableEditor.OnInspectorGUI();
+						GUILayout.Box(GUIContent.none, uiHeight2, uiExpandWidth);
+						EditorGUI.indentLevel--;
+					}
+				}
+			}
 			else
 			{
 				SerializedProperty targetProp = serializedObject.FindProperty(property.propertyPath);
-				bool restoreEnable = GUI.enabled;
-				if (targetProp.propertyPath.StartsWith("m_"))
-					GUI.enabled = false;
-				EditorGUILayout.PropertyField(targetProp, targetProp.isExpanded);
-				GUI.enabled = restoreEnable;
+
+				bool isStartProp = targetProp.propertyPath.StartsWith("m_");
+                using (new EditorGUI.DisabledScope(isStartProp))
+				{
+					EditorGUILayout.PropertyField(targetProp, targetProp.isExpanded);
+				}
 			}
+		}
+
+		// Creates a new ScriptableObject via the default Save File panel
+		private ScriptableObject CreateAssetWithSavePrompt(Type type, string path)
+		{
+			path = EditorUtility.SaveFilePanelInProject("Save ScriptableObject", "New " + type.Name + ".asset", "asset", "Enter a file name for the ScriptableObject.", path);
+			if (path == "") return null;
+			ScriptableObject asset = ScriptableObject.CreateInstance(type);
+			AssetDatabase.CreateAsset(asset, path);
+			AssetDatabase.SaveAssets();
+			AssetDatabase.Refresh();
+			AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+			EditorGUIUtility.PingObject(asset);
+			return asset;
 		}
 
 		#region Helper functions
 		/// <summary>
 		/// Draw the default inspector, with the sortable arrays
 		/// </summary>
-		public void DrawDefaultSortable()
+		public void DrawPropertiesAll()
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
 			IterateSerializedProp(iterProp);
@@ -561,7 +681,7 @@ namespace SubjectNerd.Utilities
 		/// Draw the default inspector, except for the given property names
 		/// </summary>
 		/// <param name="propertyNames"></param>
-		public void DrawSortableExcept(params string[] propertyNames)
+		public void DrawPropertiesExcept(params string[] propertyNames)
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
 			if (iterProp.NextVisible(true))
@@ -616,7 +736,7 @@ namespace SubjectNerd.Utilities
 				} while (iterProp.NextVisible(false));
 			}
 		}
-
+		
 		/// <summary>
 		/// Draw the default inspector, starting from a given property to a stopping property
 		/// </summary>
@@ -665,6 +785,6 @@ namespace SubjectNerd.Utilities
 				GUI.enabled = enabledState;
 			}
 		}
-		#endregion
+#endregion
 	}
 }
