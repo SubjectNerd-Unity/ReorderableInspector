@@ -49,7 +49,7 @@ namespace SubjectNerd.Utilities
 		/// <param name="headerString">Customize the element name in the inspector</param>
 		/// <param name="isZeroIndex">If false, start element list count from 1</param>
 		/// <param name="isSingleLine">Try to fit the array elements in a single line</param>
-		public ReorderableAttribute(string headerString, bool isZeroIndex = true, bool isSingleLine = false)
+		public ReorderableAttribute(string headerString = "", bool isZeroIndex = true, bool isSingleLine = false)
 		{
 			ElementHeader = headerString;
 			HeaderZeroIndex = isZeroIndex;
