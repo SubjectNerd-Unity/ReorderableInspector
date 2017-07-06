@@ -65,6 +65,8 @@ namespace SubjectNerd.Utilities
 			EditorApplication.delayCall = () => { EditorApplication.delayCall = () => { FORCE_INIT = false; }; };
 		}
 
+		private static GUIStyle styleHighlight;
+
 		/// <summary>
 		/// Internal class that manages ReorderableLists for each reorderable
 		/// SerializedProperty in a SerializedObject's direct child
@@ -75,8 +77,8 @@ namespace SubjectNerd.Utilities
 			public Func<int, string> ElementHeaderCallback = null;
 
 			private readonly Dictionary<string, ReorderableList> propIndex = new Dictionary<string, ReorderableList>();
-			private readonly Dictionary<string, Action<SerializedProperty, Object[]>> propDropHandlers = new Dictionary<string, Action<SerializedProperty, Object[]>>(); 
-
+			private readonly Dictionary<string, Action<SerializedProperty, Object[]>> propDropHandlers = new Dictionary<string, Action<SerializedProperty, Object[]>>();
+			
 			public SortableListData(string parent)
 			{
 				Parent = parent;
@@ -111,39 +113,46 @@ namespace SubjectNerd.Utilities
 					if (ElementHeaderCallback != null)
 						propHeader.text = ElementHeaderCallback(index);
 					EditorGUI.PropertyField(rect, targetElement, propHeader, isExpanded);
-					
+
 					// If drawing the selected element, use it to set the element height
 					// Element height seems to control selected background
+#if UNITY_5_1 || UNITY_5_2
 					if (index == propList.index)
-					{
-#if UNITY_5_3_OR_NEWER
-						propList.elementHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
-#elif UNITY_5_1 || UNITY_5_2						
+					{	
 						// Height might have changed when dealing with serialized class
 						// Call the select callback when height changes to reset the list elementHeight
 						float newHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
 						if (rect.height != newHeight)
 							propList.elementHeight = Mathf.Max(propList.elementHeight, newHeight);
-#endif
 					}
+#endif
 				};
-
-				propList.onSelectCallback = list =>
-				{
-					var targetElement = list.serializedProperty.GetArrayElementAtIndex(list.index);
-					propList.elementHeight = EditorGUI.GetPropertyHeight(targetElement, GUIContent.none, targetElement.isExpanded);
-				};
-
+				
 				// Unity 5.3 onwards allows reorderable lists to have variable element heights
 #if UNITY_5_3_OR_NEWER
-				propList.elementHeightCallback = delegate(int index)
+				propList.elementHeightCallback = index => ElementHeightCallback(property, index);
+
+				propList.drawElementBackgroundCallback = (rect, index, active, focused) =>
 				{
-					SerializedProperty arrayElement = property.GetArrayElementAtIndex(index);
-					return EditorGUI.GetPropertyHeight(arrayElement, GUIContent.none, arrayElement.isExpanded) + 3;
+					if (styleHighlight == null)
+						styleHighlight = GUI.skin.FindStyle("MeTransitionSelectHead");
+					if (focused == false)
+						return;
+					rect.height = ElementHeightCallback(property, index);
+					GUI.Box(rect, GUIContent.none, styleHighlight);
 				};
 #endif
-
 				propIndex.Add(property.propertyPath, propList);
+			}
+
+			private float ElementHeightCallback(SerializedProperty property, int index)
+			{
+				SerializedProperty arrayElement = property.GetArrayElementAtIndex(index);
+				float calculatedHeight = EditorGUI.GetPropertyHeight(arrayElement,
+																	GUIContent.none,
+																	arrayElement.isExpanded);
+				calculatedHeight += 3;
+				return calculatedHeight;
 			}
 
 			public bool DoLayoutProperty(SerializedProperty property)
@@ -434,10 +443,21 @@ namespace SubjectNerd.Utilities
 			if (arrayAttr.ElementSingleLine)
 			{
 				var list = data.GetPropertyList(property);
+#if UNITY_5_3_OR_NEWER
 				list.elementHeightCallback = index => EditorGUIUtility.singleLineHeight;
+				list.drawElementBackgroundCallback = (rect, index, active, focused) =>
+				{
+					if (focused == false)
+						return;
+					if (styleHighlight == null)
+						styleHighlight = GUI.skin.FindStyle("MeTransitionSelectHead");
+					GUI.Box(rect, GUIContent.none, styleHighlight);
+				};
+#endif
 				list.drawElementCallback = (rect, index, active, focused) =>
 				{
 					var element = property.GetArrayElementAtIndex(index);
+					element.isExpanded = false;
 					int childCount = element.Copy().CountRemaining();
 					childCount -= (property.arraySize - 1) - index;
 
@@ -449,13 +469,14 @@ namespace SubjectNerd.Utilities
 						float padding = 5f;
 						float width = rect.width - padding*(childCount - 1);
 						width /= childCount;
-
+						
 						Rect childRect = new Rect(rect) { width = width };
 						int depth = element.Copy().depth;
 						do
 						{
 							if (element.depth != depth)
 								break;
+							//EditorGUI.PropertyField(childRect, element, false);
 							if (childCount <= 2)
 								EditorGUI.PropertyField(childRect, element, false);
 							else
@@ -558,8 +579,15 @@ namespace SubjectNerd.Utilities
 
 			DrawContextMenuButtons();
 		}
+
+		protected enum IterControl
+		{
+			Draw,
+			Continue,
+			Break
+		}
 		
-		protected void IterateSerializedProp(SerializedProperty property)
+		protected void IterateDrawProperty(SerializedProperty property, Func<IterControl> filter = null)
 		{
 			if (property.NextVisible(true))
 			{
@@ -572,6 +600,17 @@ namespace SubjectNerd.Utilities
 						break;
 					if (isSubEditor && property.name.Equals("m_Script"))
 						continue;
+
+					if (filter != null)
+					{
+						switch (filter())
+						{
+							case IterControl.Break:
+								break;
+							case IterControl.Continue:
+								continue;
+						}
+					}
 
 					DrawPropertySortableArray(property);
 				} while (property.NextVisible(false));
@@ -603,10 +642,9 @@ namespace SubjectNerd.Utilities
 					{
 						EditorGUI.indentLevel++;
 						SerializedProperty targetProp = serializedObject.FindProperty(property.propertyPath);
-						IterateSerializedProp(targetProp);
+						IterateDrawProperty(targetProp);
 						EditorGUI.indentLevel--;
 					}
-
 				}
 			}
 			else if (isScriptableEditor)
@@ -674,7 +712,7 @@ namespace SubjectNerd.Utilities
 		public void DrawPropertiesAll()
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
-			IterateSerializedProp(iterProp);
+			IterateDrawProperty(iterProp);
 		}
 
 		/// <summary>
@@ -684,15 +722,14 @@ namespace SubjectNerd.Utilities
 		public void DrawPropertiesExcept(params string[] propertyNames)
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
-			if (iterProp.NextVisible(true))
-			{
-				do
+
+			IterateDrawProperty(iterProp, 
+				filter: () =>
 				{
 					if (propertyNames.Contains(iterProp.name))
-						continue;
-					DrawPropertySortableArray(iterProp);
-				} while (iterProp.NextVisible(false));
-			}
+						return IterControl.Continue;
+					return IterControl.Draw;
+				});
 		}
 
 		/// <summary>
@@ -703,20 +740,15 @@ namespace SubjectNerd.Utilities
 		{
 			bool canDraw = false;
 			SerializedProperty iterProp = serializedObject.GetIterator();
-			if (iterProp.NextVisible(true))
-			{
-				do
+			IterateDrawProperty(iterProp,
+				filter: () =>
 				{
 					if (iterProp.name.Equals(propertyStart))
 						canDraw = true;
-
-					if (canDraw == false)
-						continue;
-
-					DrawPropertySortableArray(iterProp);
-
-				} while (iterProp.NextVisible(false));
-			}
+					if (canDraw)
+						return IterControl.Draw;
+					return IterControl.Continue;
+				});
 		}
 
 		/// <summary>
@@ -726,15 +758,13 @@ namespace SubjectNerd.Utilities
 		public void DrawPropertiesUpTo(string propertyStop)
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
-			if (iterProp.NextVisible(true))
-			{
-				do
+			IterateDrawProperty(iterProp, 
+				filter: () =>
 				{
 					if (iterProp.name.Equals(propertyStop))
-						break;
-					DrawPropertySortableArray(iterProp);
-				} while (iterProp.NextVisible(false));
-			}
+						return IterControl.Break;
+					return IterControl.Draw;
+				});
 		}
 		
 		/// <summary>
@@ -746,22 +776,20 @@ namespace SubjectNerd.Utilities
 		{
 			bool canDraw = false;
 			SerializedProperty iterProp = serializedObject.GetIterator();
-			if (iterProp.NextVisible(true))
-			{
-				do
+			IterateDrawProperty(iterProp,
+				filter: () =>
 				{
+					if (iterProp.name.Equals(propertyStop))
+						return IterControl.Break;
+
 					if (iterProp.name.Equals(propertyStart))
 						canDraw = true;
 
 					if (canDraw == false)
-						continue;
+						return IterControl.Continue;
 
-					DrawPropertySortableArray(iterProp);
-
-					if (iterProp.name.Equals(propertyStop))
-						break;
-				} while (iterProp.NextVisible(false));
-			}
+					return IterControl.Draw;
+				});
 		}
 
 		public void DrawContextMenuButtons()
