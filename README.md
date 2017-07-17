@@ -15,6 +15,9 @@ Download the UnityPackage from the [latest releases](https://github.com/ChemiKha
 To draw an array as a `ReorderableList`, mark the property with the `Reorderable` attribute.
 
 ```C#
+// Add this `using` statement to the top of your file
+using SubjectNerd.Utilities;
+
 public class ListReorderTest : MonoBehaviour
 {  
 	[Reorderable]
