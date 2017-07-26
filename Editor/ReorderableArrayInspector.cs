@@ -673,7 +673,9 @@ namespace SubjectNerd.Utilities
 					if (property.isExpanded)
 					{
 						EditorGUI.indentLevel++;
+						scriptableEditor.serializedObject.Update();
 						scriptableEditor.OnInspectorGUI();
+						scriptableEditor.serializedObject.ApplyModifiedProperties();
 						GUILayout.Box(GUIContent.none, uiHeight2, uiExpandWidth);
 						EditorGUI.indentLevel--;
 					}
