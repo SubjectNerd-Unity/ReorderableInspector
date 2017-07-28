@@ -78,7 +78,8 @@ namespace SubjectNerd.Utilities
 
 			private readonly Dictionary<string, ReorderableList> propIndex = new Dictionary<string, ReorderableList>();
 			private readonly Dictionary<string, Action<SerializedProperty, Object[]>> propDropHandlers = new Dictionary<string, Action<SerializedProperty, Object[]>>();
-			
+			private readonly Dictionary<string, int> countIndex = new Dictionary<string, int>();
+
 			public SortableListData(string parent)
 			{
 				Parent = parent;
@@ -214,6 +215,33 @@ namespace SubjectNerd.Utilities
 					}
 				}
 				return true;
+			}
+
+			public int GetElementCount(SerializedProperty property)
+			{
+				if (property.arraySize <= 0)
+					return 0;
+
+				int count;
+				if (countIndex.TryGetValue(property.propertyPath, out count))
+					return count;
+
+				var element = property.GetArrayElementAtIndex(0);
+				var countElement = element.Copy();
+				int childCount = 0;
+				if (countElement.NextVisible(true))
+				{
+					int depth = countElement.Copy().depth;
+					do
+					{
+						if (countElement.depth != depth)
+							break;
+						childCount++;
+					} while (countElement.NextVisible(false));
+				}
+
+				countIndex.Add(property.propertyPath, childCount);
+				return childCount;
 			}
 
 			public ReorderableList GetPropertyList(SerializedProperty property)
@@ -444,7 +472,7 @@ namespace SubjectNerd.Utilities
 			{
 				var list = data.GetPropertyList(property);
 #if UNITY_5_3_OR_NEWER
-				list.elementHeightCallback = index => EditorGUIUtility.singleLineHeight;
+				list.elementHeightCallback = index => EditorGUIUtility.singleLineHeight + 6;
 				list.drawElementBackgroundCallback = (rect, index, active, focused) =>
 				{
 					if (focused == false)
@@ -454,12 +482,18 @@ namespace SubjectNerd.Utilities
 					GUI.Box(rect, GUIContent.none, styleHighlight);
 				};
 #endif
+
 				list.drawElementCallback = (rect, index, active, focused) =>
 				{
 					var element = property.GetArrayElementAtIndex(index);
 					element.isExpanded = false;
-					int childCount = element.Copy().CountRemaining();
-					childCount -= (property.arraySize - 1) - index;
+
+					int childCount = data.GetElementCount(property);
+					if (childCount < 1)
+						return;
+
+					rect.y += 3;
+					rect.height -= 6;
 
 					if (element.NextVisible(true))
 					{
@@ -476,7 +510,7 @@ namespace SubjectNerd.Utilities
 						{
 							if (element.depth != depth)
 								break;
-							//EditorGUI.PropertyField(childRect, element, false);
+
 							if (childCount <= 2)
 								EditorGUI.PropertyField(childRect, element, false);
 							else
