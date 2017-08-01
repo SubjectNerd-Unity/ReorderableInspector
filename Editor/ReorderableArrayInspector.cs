@@ -73,7 +73,7 @@ namespace SubjectNerd.Utilities
 		/// </summary>
 		protected class SortableListData
 		{
-			public string Parent		{ get; private set; }
+			public string Parent { get; private set; }
 			public Func<int, string> ElementHeaderCallback = null;
 
 			private readonly Dictionary<string, ReorderableList> propIndex = new Dictionary<string, ReorderableList>();
@@ -99,7 +99,7 @@ namespace SubjectNerd.Utilities
 					headerHeight = 5
 				};
 
-				propList.drawElementCallback = delegate(Rect rect, int index, bool active, bool focused)
+				propList.drawElementCallback = delegate (Rect rect, int index, bool active, bool focused)
 				{
 					SerializedProperty targetElement = property.GetArrayElementAtIndex(index);
 
@@ -128,7 +128,7 @@ namespace SubjectNerd.Utilities
 					}
 #endif
 				};
-				
+
 				// Unity 5.3 onwards allows reorderable lists to have variable element heights
 #if UNITY_5_3_OR_NEWER
 				propList.elementHeightCallback = index => ElementHeightCallback(property, index);
@@ -164,7 +164,7 @@ namespace SubjectNerd.Utilities
 				// Draw the header
 				string headerText = string.Format("{0} [{1}]", property.displayName, property.arraySize);
 				EditorGUILayout.PropertyField(property, new GUIContent(headerText), false);
-				
+
 				// Save header rect for handling drag and drop
 				Rect dropRect = GUILayoutUtility.GetLastRect();
 
@@ -269,7 +269,7 @@ namespace SubjectNerd.Utilities
 		private readonly GUIContent labelBtnCreate = new GUIContent("Create");
 
 		private readonly List<SortableListData> listIndex = new List<SortableListData>();
-		private readonly Dictionary<string, Editor> editableIndex = new Dictionary<string, Editor>(); 
+		private readonly Dictionary<string, Editor> editableIndex = new Dictionary<string, Editor>();
 
 		protected bool alwaysDrawInspector = false;
 		protected bool isInitialized = false;
@@ -327,7 +327,7 @@ namespace SubjectNerd.Utilities
 		{
 			listIndex.Clear();
 			editableIndex.Clear();
-			Type typeScriptable = typeof (ScriptableObject);
+			Type typeScriptable = typeof(ScriptableObject);
 
 			SerializedProperty iterProp = serializedObject.GetIterator();
 			// This iterator goes through all the child serialized properties, looking
@@ -397,7 +397,7 @@ namespace SubjectNerd.Utilities
 			if (t == null)
 				return Enumerable.Empty<MethodInfo>();
 			var binding = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
-            return t.GetMethods(binding).Concat(GetAllMethods(t.BaseType));
+			return t.GetMethods(binding).Concat(GetAllMethods(t.BaseType));
 		}
 
 		private void FindContextMenu()
@@ -429,7 +429,7 @@ namespace SubjectNerd.Utilities
 							data.validate = methodInfo;
 						else
 							data.function = methodInfo;
-                        contextData.Add(data.menuItem, data);
+						contextData.Add(data.menuItem, data);
 					}
 				}
 			}
@@ -451,7 +451,7 @@ namespace SubjectNerd.Utilities
 			object[] attr = property.GetAttributes<ReorderableAttribute>();
 			if (attr != null && attr.Length == 1)
 			{
-				ReorderableAttribute arrayAttr = (ReorderableAttribute) attr[0];
+				ReorderableAttribute arrayAttr = (ReorderableAttribute)attr[0];
 				if (arrayAttr != null)
 				{
 					HandleReorderableOptions(arrayAttr, property, data);
@@ -501,9 +501,9 @@ namespace SubjectNerd.Utilities
 						EditorGUIUtility.labelWidth /= childCount;
 
 						float padding = 5f;
-						float width = rect.width - padding*(childCount - 1);
+						float width = rect.width - padding * (childCount - 1);
 						width /= childCount;
-						
+
 						Rect childRect = new Rect(rect) { width = width };
 						int depth = element.Copy().depth;
 						do
@@ -563,7 +563,7 @@ namespace SubjectNerd.Utilities
 			data.SetDropHandler(property, handler);
 			return true;
 		}
-#endregion
+		#endregion
 
 		protected bool InspectorGUIStart(bool force = false)
 		{
@@ -576,7 +576,7 @@ namespace SubjectNerd.Utilities
 			// No sortable arrays or list index unintialized
 			bool cannotDrawOrderable = (hasSortableArrays == false || listIndex.Count == 0);
 			bool cannotDrawEditable = (hasEditable == false || editableIndex.Count == 0);
-            if (cannotDrawOrderable && cannotDrawEditable && force == false)
+			if (cannotDrawOrderable && cannotDrawEditable && force == false)
 			{
 				if (isSubEditor)
 					DrawPropertiesExcluding(serializedObject, "m_Script");
@@ -602,9 +602,9 @@ namespace SubjectNerd.Utilities
 				return;
 
 			EditorGUI.BeginChangeCheck();
-			
+
 			DrawInspector();
-			
+
 			if (EditorGUI.EndChangeCheck())
 			{
 				serializedObject.ApplyModifiedProperties();
@@ -620,7 +620,7 @@ namespace SubjectNerd.Utilities
 			Continue,
 			Break
 		}
-		
+
 		protected void IterateDrawProperty(SerializedProperty property, Func<IterControl> filter = null)
 		{
 			if (property.NextVisible(true))
@@ -637,13 +637,11 @@ namespace SubjectNerd.Utilities
 
 					if (filter != null)
 					{
-						switch (filter())
-						{
-							case IterControl.Break:
-								break;
-							case IterControl.Continue:
-								continue;
-						}
+						var filterResult = filter();
+						if (filterResult == IterControl.Break)
+							break;
+						if (filterResult == IterControl.Continue)
+							continue;
 					}
 
 					DrawPropertySortableArray(property);
@@ -720,7 +718,7 @@ namespace SubjectNerd.Utilities
 				SerializedProperty targetProp = serializedObject.FindProperty(property.propertyPath);
 
 				bool isStartProp = targetProp.propertyPath.StartsWith("m_");
-                using (new EditorGUI.DisabledScope(isStartProp))
+				using (new EditorGUI.DisabledScope(isStartProp))
 				{
 					EditorGUILayout.PropertyField(targetProp, targetProp.isExpanded);
 				}
@@ -759,7 +757,7 @@ namespace SubjectNerd.Utilities
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
 
-			IterateDrawProperty(iterProp, 
+			IterateDrawProperty(iterProp,
 				filter: () =>
 				{
 					if (propertyNames.Contains(iterProp.name))
@@ -794,7 +792,7 @@ namespace SubjectNerd.Utilities
 		public void DrawPropertiesUpTo(string propertyStop)
 		{
 			SerializedProperty iterProp = serializedObject.GetIterator();
-			IterateDrawProperty(iterProp, 
+			IterateDrawProperty(iterProp,
 				filter: () =>
 				{
 					if (iterProp.name.Equals(propertyStop))
@@ -802,7 +800,7 @@ namespace SubjectNerd.Utilities
 					return IterControl.Draw;
 				});
 		}
-		
+
 		/// <summary>
 		/// Draw the default inspector, starting from a given property to a stopping property
 		/// </summary>
@@ -839,7 +837,7 @@ namespace SubjectNerd.Utilities
 				bool enabledState = GUI.enabled;
 				bool isEnabled = true;
 				if (kv.Value.validate != null)
-					isEnabled = (bool) kv.Value.validate.Invoke(target, null);
+					isEnabled = (bool)kv.Value.validate.Invoke(target, null);
 
 				GUI.enabled = isEnabled;
 				if (GUILayout.Button(kv.Key) && kv.Value.function != null)
@@ -849,6 +847,6 @@ namespace SubjectNerd.Utilities
 				GUI.enabled = enabledState;
 			}
 		}
-#endregion
+		#endregion
 	}
 }
