@@ -370,9 +370,13 @@ namespace SubjectNerd.Utilities
 								Editor scriptableEditor = null;
 								if (iterProp.objectReferenceValue != null)
 								{
+#if UNITY_5_6_OR_NEWER
 									CreateCachedEditorWithContext(iterProp.objectReferenceValue,
 																serializedObject.targetObject, null,
 																ref scriptableEditor);
+#else
+									CreateCachedEditor(iterProp.objectReferenceValue, null, ref scriptableEditor);
+#endif
 									var reorderable = scriptableEditor as ReorderableArrayInspector;
 									if (reorderable != null)
 										reorderable.isSubEditor = true;
@@ -563,7 +567,7 @@ namespace SubjectNerd.Utilities
 			data.SetDropHandler(property, handler);
 			return true;
 		}
-		#endregion
+#endregion
 
 		protected bool InspectorGUIStart(bool force = false)
 		{
@@ -739,7 +743,7 @@ namespace SubjectNerd.Utilities
 			return asset;
 		}
 
-		#region Helper functions
+#region Helper functions
 		/// <summary>
 		/// Draw the default inspector, with the sortable arrays
 		/// </summary>
@@ -847,6 +851,6 @@ namespace SubjectNerd.Utilities
 				GUI.enabled = enabledState;
 			}
 		}
-		#endregion
+#endregion
 	}
 }
