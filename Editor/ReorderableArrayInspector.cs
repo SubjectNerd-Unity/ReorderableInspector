@@ -265,8 +265,8 @@ namespace SubjectNerd.Utilities
 
 		private readonly GUILayoutOption uiExpandWidth = GUILayout.ExpandWidth(true);
 		private readonly GUILayoutOption uiWidth50 = GUILayout.Width(50);
-		private readonly GUILayoutOption uiHeight2 = GUILayout.Height(2);
 		private readonly GUIContent labelBtnCreate = new GUIContent("Create");
+		private GUIStyle styleEditBox;
 
 		private readonly List<SortableListData> listIndex = new List<SortableListData>();
 		private readonly Dictionary<string, Editor> editableIndex = new Dictionary<string, Editor>();
@@ -319,6 +319,7 @@ namespace SubjectNerd.Utilities
 			if (isInitialized && FORCE_INIT == false)
 				return;
 
+			styleEditBox = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(10, 5, 5, 5) };
 			FindTargetProperties();
 			FindContextMenu();
 		}
@@ -668,6 +669,7 @@ namespace SubjectNerd.Utilities
 			Editor scriptableEditor;
 			bool isScriptableEditor = editableIndex.TryGetValue(property.propertyPath, out scriptableEditor);
 
+			// Has ReorderableList
 			if (listData != null)
 			{
 				// Try to show the list
@@ -683,36 +685,59 @@ namespace SubjectNerd.Utilities
 					}
 				}
 			}
+			// Else try to draw ScriptableObject editor
 			else if (isScriptableEditor)
 			{
+				bool hasSpace = property.HasAttribute<SpaceAttribute>();
+
+				// No data in property, draw property field with create button
 				if (scriptableEditor == null)
 				{
+					bool doCreate;
 					using (new EditorGUILayout.HorizontalScope())
 					{
 						EditorGUILayout.PropertyField(property, uiExpandWidth);
-						if (GUILayout.Button(labelBtnCreate, EditorStyles.miniButton, uiWidth50))
+						using (new EditorGUILayout.VerticalScope(uiWidth50))
 						{
-							Type propType = property.GetTypeReflection();
-							var createdAsset = CreateAssetWithSavePrompt(propType, "Assets");
-							if (createdAsset != null)
-								property.objectReferenceValue = createdAsset;
+							if (hasSpace) GUILayout.Space(10);
+							doCreate = GUILayout.Button(labelBtnCreate, EditorStyles.miniButton);
+						}
+					}
+
+					if (doCreate)
+					{
+						Type propType = property.GetTypeReflection();
+						var createdAsset = CreateAssetWithSavePrompt(propType, "Assets");
+						if (createdAsset != null)
+						{
+							property.objectReferenceValue = createdAsset;
+							property.isExpanded = true;
 						}
 					}
 				}
+				// Has data in property, draw foldout and editor
 				else
 				{
 					EditorGUILayout.PropertyField(property);
+
 					Rect rectFoldout = GUILayoutUtility.GetLastRect();
 					rectFoldout.width = 20;
+					if (hasSpace) rectFoldout.yMin += 7;
+
 					property.isExpanded = EditorGUI.Foldout(rectFoldout, property.isExpanded, GUIContent.none);
 
 					if (property.isExpanded)
 					{
 						EditorGUI.indentLevel++;
-						scriptableEditor.serializedObject.Update();
-						scriptableEditor.OnInspectorGUI();
-						scriptableEditor.serializedObject.ApplyModifiedProperties();
-						GUILayout.Box(GUIContent.none, uiHeight2, uiExpandWidth);
+						using (new EditorGUILayout.VerticalScope(styleEditBox))
+						{
+							var restoreIndent = EditorGUI.indentLevel;
+							EditorGUI.indentLevel = 0;
+							scriptableEditor.serializedObject.Update();
+							scriptableEditor.OnInspectorGUI();
+							scriptableEditor.serializedObject.ApplyModifiedProperties();
+							EditorGUI.indentLevel = restoreIndent;
+						}
 						EditorGUI.indentLevel--;
 					}
 				}
