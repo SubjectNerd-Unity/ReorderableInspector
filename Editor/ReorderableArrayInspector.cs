@@ -319,7 +319,7 @@ namespace SubjectNerd.Utilities
 			if (isInitialized && FORCE_INIT == false)
 				return;
 
-			styleEditBox = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(10, 5, 5, 5) };
+			styleEditBox = new GUIStyle(EditorStyles.helpBox) { padding = new RectOffset(5, 5, 5, 5) };
 			FindTargetProperties();
 			FindContextMenu();
 		}
@@ -688,7 +688,14 @@ namespace SubjectNerd.Utilities
 			// Else try to draw ScriptableObject editor
 			else if (isScriptableEditor)
 			{
+				bool hasHeader = property.HasAttribute<HeaderAttribute>();
 				bool hasSpace = property.HasAttribute<SpaceAttribute>();
+
+				float foldoutSpace = hasHeader ? 24 : 7;
+				if (hasHeader && hasSpace)
+					foldoutSpace = 31;
+
+				hasSpace |= hasHeader;
 
 				// No data in property, draw property field with create button
 				if (scriptableEditor == null)
@@ -722,7 +729,7 @@ namespace SubjectNerd.Utilities
 
 					Rect rectFoldout = GUILayoutUtility.GetLastRect();
 					rectFoldout.width = 20;
-					if (hasSpace) rectFoldout.yMin += 7;
+					if (hasSpace) rectFoldout.yMin += foldoutSpace;
 
 					property.isExpanded = EditorGUI.Foldout(rectFoldout, property.isExpanded, GUIContent.none);
 
@@ -732,7 +739,7 @@ namespace SubjectNerd.Utilities
 						using (new EditorGUILayout.VerticalScope(styleEditBox))
 						{
 							var restoreIndent = EditorGUI.indentLevel;
-							EditorGUI.indentLevel = 0;
+							EditorGUI.indentLevel = 1;
 							scriptableEditor.serializedObject.Update();
 							scriptableEditor.OnInspectorGUI();
 							scriptableEditor.serializedObject.ApplyModifiedProperties();
