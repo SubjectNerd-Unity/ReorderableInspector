@@ -340,7 +340,7 @@ namespace SubjectNerd.Utilities
 					if (iterProp.isArray && iterProp.propertyType != SerializedPropertyType.String)
 					{
 #if LIST_ALL_ARRAYS
-						bool canTurnToList = true
+						bool canTurnToList = true;
 #else
 						bool canTurnToList = iterProp.HasAttribute<ReorderableAttribute>();
 #endif
