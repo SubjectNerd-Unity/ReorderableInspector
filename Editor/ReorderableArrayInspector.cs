@@ -182,9 +182,13 @@ namespace SubjectNerd.Utilities
 				if (evt == null)
 					return true;
 
-				if (evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform)
-				{
-					if (dropRect.Contains(evt.mousePosition) == false)
+#if UNITY_2018_2_OR_NEWER
+                if (evt.type == EventType.DragUpdated || evt.type == EventType.DragPerform)
+#else
+                if (evt.type == EventType.dragUpdated || evt.type == EventType.dragPerform)
+#endif
+                {
+                    if (dropRect.Contains(evt.mousePosition) == false)
 						return true;
 
 					DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
@@ -301,7 +305,7 @@ namespace SubjectNerd.Utilities
 			isInitialized = false;
 		}
 
-		#region Initialization
+#region Initialization
 		private void OnEnable()
 		{
 			InitInspector();
