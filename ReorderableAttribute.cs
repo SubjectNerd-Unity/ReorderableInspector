@@ -58,11 +58,11 @@ namespace SubjectNerd.Utilities
 		}
 
 		public ReorderableAttribute(string displayName = "", string headerString = "", bool isZeroIndex = true, bool isSingleLine = false)
-        {
-            DisplayName = displayName;
-            ElementHeader = headerString;
-            HeaderZeroIndex = isZeroIndex;
-            ElementSingleLine = isSingleLine;
-        }
+		{
+			DisplayName = displayName;
+			ElementHeader = headerString;
+			HeaderZeroIndex = isZeroIndex;
+			ElementSingleLine = isSingleLine;
+		}
 	}
 }
