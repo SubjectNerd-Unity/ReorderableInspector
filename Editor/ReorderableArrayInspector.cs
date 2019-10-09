@@ -162,7 +162,17 @@ namespace SubjectNerd.Utilities
 					return false;
 
 				// Draw the header
-				string headerText = string.Format("{0} [{1}]", property.displayName, property.arraySize);
+				object[] attr = property.GetAttributes<ReorderableAttribute>();
+				string displayName = "";
+				if (attr != null && attr.Length == 1)
+				{
+					ReorderableAttribute arrayAttr = (ReorderableAttribute)attr[0];
+					if (arrayAttr != null)
+					{
+						displayName = arrayAttr.DisplayName;
+					}
+				}
+				string headerText = string.Format("{0} [{1}]", string.IsNullOrEmpty(displayName) ? property.displayName : displayName, property.arraySize);
 				EditorGUILayout.PropertyField(property, new GUIContent(headerText), false);
 
 				// Save header rect for handling drag and drop

@@ -29,6 +29,7 @@ namespace SubjectNerd.Utilities
 	/// </summary>
 	public class ReorderableAttribute : PropertyAttribute
 	{
+		public string DisplayName { get; protected set; }
 		public string ElementHeader { get; protected set; }
 		public bool HeaderZeroIndex { get; protected set; }
 		public bool ElementSingleLine { get; protected set; }
@@ -51,6 +52,14 @@ namespace SubjectNerd.Utilities
 		/// <param name="isSingleLine">Try to fit the array elements in a single line</param>
 		public ReorderableAttribute(string headerString = "", bool isZeroIndex = true, bool isSingleLine = false)
 		{
+			ElementHeader = headerString;
+			HeaderZeroIndex = isZeroIndex;
+			ElementSingleLine = isSingleLine;
+		}
+
+		public ReorderableAttribute(string displayName = "", string headerString = "", bool isZeroIndex = true, bool isSingleLine = false)
+		{
+			DisplayName = displayName;
 			ElementHeader = headerString;
 			HeaderZeroIndex = isZeroIndex;
 			ElementSingleLine = isSingleLine;

@@ -267,7 +267,16 @@ namespace SubjectNerd.Utilities
 			                                  | System.Reflection.BindingFlags.Instance
 			                                  | System.Reflection.BindingFlags.NonPublic
 			                                  | System.Reflection.BindingFlags.Public;
-			FieldInfo field = objType.GetField(prop.name, bindingFlags);
+			FieldInfo field = null;
+			while (objType != null)
+			{
+				field = objType.GetField(prop.name, bindingFlags);
+				if (field != null)
+				{
+					break;
+				}
+				objType = objType.BaseType;
+			}
 			if (field != null)
 				return field.GetCustomAttributes(attrType, true);
 			return new object[0];
