@@ -62,7 +62,7 @@ namespace SubjectNerd.Utilities
 		{
 			FORCE_INIT = true;
 
-			EditorApplication.delayCall = () => { EditorApplication.delayCall = () => { FORCE_INIT = false; }; };
+			EditorApplication.delayCall += () => { EditorApplication.delayCall += () => { FORCE_INIT = false; }; };
 		}
 
 		private static GUIStyle styleHighlight;
